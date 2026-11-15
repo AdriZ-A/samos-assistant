@@ -43,6 +43,7 @@
       <button class="primary" id="mic">🎙 Parler</button>
       <button id="stop">Arrêter la voix</button>
       <button id="installApp" hidden>Installer SAMOS</button>
+      <button id="copyChat" type="button">Copier la conversation</button>
       <button class="danger" id="clearChat" type="button">Effacer la conversation</button>
     </div>
     <p class="hint" id="voiceStatus">La reconnaissance vocale dépend de la compatibilité de ton navigateur et peut nécessiter une connexion.</p>
@@ -246,6 +247,25 @@
   });
   $('clearMemory').addEventListener('click', () => { if(confirm('Effacer toutes les notes locales de SAMOS ?')) { localStorage.removeItem(memoryKey); renderMemories(); } });
   $('stop').addEventListener('click', () => { if('speechSynthesis' in window) speechSynthesis.cancel(); });
+  $('copyChat').addEventListener('click', async () => {
+    const transcript = [...log.querySelectorAll('.msg')].map(el =>
+      (el.classList.contains('user') ? 'Toi : ' : 'SAMOS : ') + el.textContent
+    ).join('\n\n');
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(transcript);
+      } else {
+        const area = document.createElement('textarea');
+        area.value = transcript; area.style.position = 'fixed'; area.style.opacity = '0';
+        document.body.appendChild(area); area.select();
+        const copied = document.execCommand('copy'); area.remove();
+        if (!copied) throw new Error('copie indisponible');
+      }
+      $('voiceStatus').textContent = 'Conversation copiée. Tu peux maintenant la coller dans une application.';
+    } catch {
+      $('voiceStatus').textContent = 'La copie automatique n’est pas disponible dans ce navigateur.';
+    }
+  });
   $('clearChat').addEventListener('click', () => {
     if (!confirm('Effacer l’historique de cette conversation sur cet appareil ?')) return;
     localStorage.removeItem(chatKey);
