@@ -54,6 +54,19 @@
   </section>
 
   <section class="panel">
+    <h2 style="font-size:18px;margin-top:0">Réglages vocaux</h2>
+    <label for="voiceSelect">Voix française disponible sur ton téléphone</label>
+    <select id="voiceSelect" style="width:100%;border:1px solid var(--line);border-radius:12px;background:#0b1525;color:var(--text);padding:12px">
+      <option value="">Voix française par défaut</option>
+    </select>
+    <div class="actions">
+      <button id="testVoice" type="button">Tester la voix</button>
+      <button id="toggleSpeech" type="button" aria-pressed="true">Désactiver la lecture vocale</button>
+    </div>
+    <p class="hint">Les voix proposées dépendent de celles installées dans Android et Chrome. Une voix masculine n'est pas garantie sur tous les appareils.</p>
+  </section>
+
+  <section class="panel">
     <h2 style="font-size:18px;margin-top:0">Mémoire locale</h2>
     <p class="hint">Les notes et l'historique de conversation sont enregistrés dans le stockage de ce navigateur, sur cet appareil. Ils ne sont pas synchronisés et peuvent disparaître si les données du site sont effacées. Évite les informations privées.</p>
     <form id="memoryForm">
@@ -71,6 +84,9 @@
   const log = $('log');
   const memoryKey = 'samos-memory-v1';
   const chatKey = 'samos-chat-v1';
+  const voiceKey = 'samos-voice-v1';
+  const speechKey = 'samos-speech-enabled-v1';
+  let speechEnabled = localStorage.getItem(speechKey) !== 'false';
   const getChat = () => { try { const data = JSON.parse(localStorage.getItem(chatKey) || '[]'); return Array.isArray(data) ? data.slice(-40) : []; } catch { return []; } };
   const saveChat = () => {
     const messages = [...log.querySelectorAll('.msg')].map(el => ({ text: el.textContent.slice(0, 500), who: el.classList.contains('user') ? 'user' : 'samos' })).slice(-40);
@@ -83,16 +99,50 @@
     messages.forEach(item => addMessage(item.text, item.who));
   };
   const getMemories = () => { try { return JSON.parse(localStorage.getItem(memoryKey) || '[]'); } catch { return []; } };
-  const say = text => {
+  const voiceSelect = $('voiceSelect');
+  const populateVoices = () => {
     if (!('speechSynthesis' in window)) return;
+    const voices = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
+    const selected = localStorage.getItem(voiceKey) || '';
+    voiceSelect.replaceChildren(new Option('Voix française par défaut', ''));
+    voices.forEach(v => voiceSelect.add(new Option(v.name + ' (' + v.lang + ')', v.name)));
+    voiceSelect.value = voices.some(v => v.name === selected) ? selected : '';
+  };
+  const say = text => {
+    if (!speechEnabled || !('speechSynthesis' in window)) return;
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'fr-FR'; u.rate = 0.94; u.pitch = 0.88;
-    const voices = speechSynthesis.getVoices();
-    const french = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
+    const voices = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
+    const chosen = voices.find(v => v.name === (localStorage.getItem(voiceKey) || ''));
+    const french = chosen || voices[0];
     if (french) u.voice = french;
     speechSynthesis.speak(u);
   };
+  if ('speechSynthesis' in window) {
+    populateVoices();
+    speechSynthesis.addEventListener('voiceschanged', populateVoices);
+  } else {
+    voiceSelect.disabled = true;
+    $('testVoice').disabled = true;
+    $('toggleSpeech').disabled = true;
+  }
+  voiceSelect.addEventListener('change', () => {
+    localStorage.setItem(voiceKey, voiceSelect.value);
+    say('Bonjour. Je suis SAMOS.');
+  });
+  $('testVoice').addEventListener('click', () => say('Bonjour. Je suis SAMOS, ton assistant personnel.'));
+  const updateSpeechButton = () => {
+    $('toggleSpeech').textContent = speechEnabled ? 'Désactiver la lecture vocale' : 'Activer la lecture vocale';
+    $('toggleSpeech').setAttribute('aria-pressed', String(speechEnabled));
+  };
+  updateSpeechButton();
+  $('toggleSpeech').addEventListener('click', () => {
+    speechEnabled = !speechEnabled;
+    localStorage.setItem(speechKey, String(speechEnabled));
+    if (!speechEnabled && 'speechSynthesis' in window) speechSynthesis.cancel();
+    updateSpeechButton();
+  });
   const addMessage = (text, who) => {
     const div = document.createElement('div'); div.className = 'msg ' + who; div.textContent = text;
     log.appendChild(div); log.scrollTop = log.scrollHeight;
