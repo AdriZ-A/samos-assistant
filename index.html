@@ -42,6 +42,7 @@
     <div class="actions">
       <button class="primary" id="mic">🎙 Parler</button>
       <button id="stop">Arrêter la voix</button>
+      <button id="installApp" hidden>Installer SAMOS</button>
     </div>
     <p class="hint" id="voiceStatus">La reconnaissance vocale dépend de la compatibilité de ton navigateur et peut nécessiter une connexion.</p>
     <form id="chatForm">
@@ -137,6 +138,24 @@
   });
   $('clearMemory').addEventListener('click', () => { if(confirm('Effacer toutes les notes locales de SAMOS ?')) { localStorage.removeItem(memoryKey); renderMemories(); } });
   $('stop').addEventListener('click', () => { if('speechSynthesis' in window) speechSynthesis.cancel(); });
+  let installPrompt = null;
+  const installButton = $('installApp');
+  window.addEventListener('beforeinstallprompt', event => {
+    event.preventDefault();
+    installPrompt = event;
+    installButton.hidden = false;
+  });
+  installButton.addEventListener('click', async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    installPrompt = null;
+    installButton.hidden = true;
+  });
+  window.addEventListener('appinstalled', () => {
+    installButton.hidden = true;
+    $('voiceStatus').textContent = 'SAMOS est installé sur cet appareil.';
+  });
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SpeechRecognition) {
     const recognition = new SpeechRecognition(); recognition.lang='fr-FR'; recognition.interimResults=false; recognition.maxAlternatives=1;
