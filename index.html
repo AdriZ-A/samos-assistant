@@ -97,13 +97,36 @@
   const respond = raw => {
     const text = raw.trim(); if (!text) return;
     addMessage(text,'user');
-    const q = text.toLowerCase();
-    let answer = "Je suis encore une version de démonstration. Je peux répondre à quelques commandes simples et conserver des notes locales. Pour une véritable conversation intelligente, il faudra connecter plus tard un service d'IA.";
-    if (/\b(bonjour|salut|bonsoir)\b/.test(q)) answer = "Bonjour. Que puis-je faire pour toi ?";
-    else if (q.includes('qui es-tu') || q.includes('ton nom')) answer = "Je suis SAMOS, ton assistant personnel en version prototype.";
-    else if (q.includes('quelle heure')) answer = "L'heure affichée par ton téléphone est " + new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) + ".";
-    else if (q.includes('que sais-tu') || q.includes('ma mémoire') || q.includes('mes notes')) answer = getMemories().length ? "Voici les notes mémorisées : " + getMemories().join(' ; ') : "Je n'ai encore aucune note en mémoire.";
-    else if (q.includes('merci')) answer = "Avec plaisir. Je suis prêt à continuer.";
+    const q = text.toLocaleLowerCase('fr-FR');
+    let answer = "Je peux t'aider avec mes fonctions intégrées, mais mon moteur reste local et limité. Je ne suis pas encore relié à une véritable IA.";
+    const rememberMatch = text.match(/^(?:samos[, ]*)?(?:mémorise|souviens-toi|retiens)(?: que)?\s+(.+)$/i);
+    if (rememberMatch) {
+      const note = rememberMatch[1].trim();
+      const list = getMemories();
+      if (note && !list.includes(note)) { list.push(note); localStorage.setItem(memoryKey, JSON.stringify(list)); renderMemories(); }
+      answer = "C'est enregistré dans ma mémoire locale : " + note;
+    } else if (/^(?:samos[, ]*)?(?:oublie tout|efface toute ma mémoire)$/i.test(text)) {
+      localStorage.removeItem(memoryKey); renderMemories(); answer = "Toutes mes notes locales ont été effacées.";
+    } else if (/\b(bonjour|salut|bonsoir|coucou)\b/.test(q)) {
+      answer = "Bonjour. Je suis opérationnel. Que souhaites-tu faire ?";
+    } else if (q.includes('qui es-tu') || q.includes('ton nom')) {
+      answer = "Je suis SAMOS, ton assistant personnel. Je peux parler, écouter si le navigateur le permet et conserver des notes sur cet appareil.";
+    } else if (q.includes('quelle heure') || q.includes('il est quelle heure')) {
+      answer = "Il est " + new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) + ".";
+    } else if (q.includes('quelle date') || q.includes('on est quel jour') || q.includes('nous sommes quel jour')) {
+      answer = "Nous sommes le " + new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) + ".";
+    } else if (q.includes('que sais-tu') || q.includes('ma mémoire') || q.includes('mes notes') || q.includes('qu’as-tu retenu') || q.includes("qu'as-tu retenu")) {
+      const notes = getMemories();
+      answer = notes.length ? "Voici ce que j'ai retenu : " + notes.join(' ; ') : "Je n'ai encore aucune note en mémoire. Tu peux dire : « Mémorise que mon projet s'appelle SAMOS ».";
+    } else if (q.includes('aide') || q.includes('que peux-tu faire')) {
+      answer = "Je peux te saluer, donner l'heure et la date, mémoriser une note si tu dis « Mémorise que… », retrouver tes notes et les effacer si tu dis « Oublie tout ». Mes notes restent sur ce navigateur.";
+    } else if (q.includes('merci')) {
+      answer = "Avec plaisir. Je reste à ta disposition.";
+    } else if (q.includes('comment vas-tu')) {
+      answer = "Tous mes systèmes locaux fonctionnent. Merci de demander.";
+    } else if (q.includes('samos')) {
+      answer = "Je suis là. Tu peux dire « aide » pour connaître mes commandes disponibles.";
+    }
     addMessage(answer,'samos'); say(answer);
   };
   $('chatForm').addEventListener('submit', e => { e.preventDefault(); const value=$('message').value; $('message').value=''; respond(value); });
