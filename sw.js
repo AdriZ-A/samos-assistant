@@ -1,4 +1,4 @@
-const CACHE = 'samos-shell-v7';
+const CACHE = 'samos-shell-v8';
 const FILES = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', event => {
