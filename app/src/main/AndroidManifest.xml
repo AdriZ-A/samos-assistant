@@ -1,12 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <application android:theme="@android:style/Theme.Material.NoActionBar" android:label="SAMOS" android:allowBackup="false">
-        <activity android:name=".MainActivity" android:exported="true">
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <application
+        android:theme="@android:style/Theme.Material.NoActionBar"
+        android:label="SAMOS"
+        android:allowBackup="false"
+        android:supportsRtl="true">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name=".PresenceService" android:exported="false" />
+        <service
+            android:name=".PresenceService"
+            android:exported="false" />
     </application>
 </manifest>
