@@ -225,8 +225,8 @@
       answer = notes.length ? "Voici ce que j'ai retenu : " + notes.join(' ; ') : "Je n'ai encore aucune note en mémoire. Tu peux dire : « Mémorise que mon projet s'appelle SAMOS ».";
     } else if (q.includes('aide') || q.includes('que peux-tu faire')) {
       answer = "Je peux te saluer, donner l'heure et la date, mémoriser une note si tu dis « Mémorise que… », retrouver tes notes, faire des calculs simples avec parenthèses et les effacer si tu dis « Oublie tout ». Mes notes restent sur ce navigateur.";
-    } else if (/^(?:samos[, ]*)?(?:calcule|calcul|combien font)\\s+/.test(q)) {
-      const expression = text.replace(/^(?:samos[, ]*)?(?:calcule|calcul|combien font)\\s+/i, '');
+    } else if (/^(?:samos[, ]*)?(?:calcule|calcul|combien font)\s+/.test(q)) {
+      const expression = text.replace(/^(?:samos[, ]*)?(?:calcule|calcul|combien font)\s+/i, '');
       const result = calculate(expression);
       answer = result === null ? "Je n'ai pas réussi à interpréter ce calcul. Essaie par exemple : « Calcule (12 + 8) × 3 »." : "Le résultat est " + result + ".";
     } else if (q.includes('merci')) {
