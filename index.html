@@ -159,6 +159,46 @@
       row.append(span,btn); $('memories').append(row);
     });
   };
+  const calculate = source => {
+    const input = source.replace(/,/g, '.').replace(/[×x]/gi, '*').replace(/÷/g, '/').replace(/−/g, '-').replace(/\s+/g, '');
+    if (!input || !/^[0-9.+*/()%-]+$/.test(input)) return null;
+    let pos = 0;
+    const number = () => {
+      if (input[pos] === '+') { pos++; return number(); }
+      if (input[pos] === '-') { pos++; return -number(); }
+      if (input[pos] === '(') {
+        pos++; const value = expression();
+        if (input[pos] !== ')') throw Error('parenthèse');
+        pos++; return value;
+      }
+      const start = pos;
+      while (/[0-9.]/.test(input[pos] || '') && pos < input.length) pos++;
+      if (start === pos || (input.slice(start,pos).match(/\./g) || []).length > 1) throw Error('nombre');
+      return Number(input.slice(start,pos));
+    };
+    const term = () => {
+      let value = number();
+      while (input[pos] === '*' || input[pos] === '/' || input[pos] === '%') {
+        const op = input[pos++], right = number();
+        if ((op === '/' || op === '%') && right === 0) throw Error('division');
+        value = op === '*' ? value * right : op === '/' ? value / right : value % right;
+      }
+      return value;
+    };
+    const expression = () => {
+      let value = term();
+      while (input[pos] === '+' || input[pos] === '-') {
+        const op = input[pos++], right = term();
+        value = op === '+' ? value + right : value - right;
+      }
+      return value;
+    };
+    try {
+      const result = expression();
+      if (pos !== input.length || !Number.isFinite(result)) return null;
+      return Number(result.toPrecision(10)).toLocaleString('fr-FR');
+    } catch { return null; }
+  };
   const respond = raw => {
     const text = raw.trim(); if (!text) return;
     addMessage(text,'user');
@@ -184,7 +224,11 @@
       const notes = getMemories();
       answer = notes.length ? "Voici ce que j'ai retenu : " + notes.join(' ; ') : "Je n'ai encore aucune note en mémoire. Tu peux dire : « Mémorise que mon projet s'appelle SAMOS ».";
     } else if (q.includes('aide') || q.includes('que peux-tu faire')) {
-      answer = "Je peux te saluer, donner l'heure et la date, mémoriser une note si tu dis « Mémorise que… », retrouver tes notes et les effacer si tu dis « Oublie tout ». Mes notes restent sur ce navigateur.";
+      answer = "Je peux te saluer, donner l'heure et la date, mémoriser une note si tu dis « Mémorise que… », retrouver tes notes, faire des calculs simples avec parenthèses et les effacer si tu dis « Oublie tout ». Mes notes restent sur ce navigateur.";
+    } else if (/^(?:samos[, ]*)?(?:calcule|calcul|combien font)\\s+/.test(q)) {
+      const expression = text.replace(/^(?:samos[, ]*)?(?:calcule|calcul|combien font)\\s+/i, '');
+      const result = calculate(expression);
+      answer = result === null ? "Je n'ai pas réussi à interpréter ce calcul. Essaie par exemple : « Calcule (12 + 8) × 3 »." : "Le résultat est " + result + ".";
     } else if (q.includes('merci')) {
       answer = "Avec plaisir. Je reste à ta disposition.";
     } else if (q.includes('comment vas-tu')) {
