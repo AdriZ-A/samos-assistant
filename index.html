@@ -84,6 +84,16 @@
     </form>
     <div id="memories" aria-live="polite"></div>
   </section>
+  <section class="panel">
+    <h2 style="font-size:18px;margin-top:0">Tâches</h2>
+    <p class="hint">Une petite liste de choses à faire, enregistrée uniquement dans ce navigateur.</p>
+    <form id="taskForm">
+      <label for="taskText">Nouvelle tâche</label>
+      <input id="taskText" maxlength="160" placeholder="Ex. Préparer mon exposé">
+      <div class="actions"><button class="primary" type="submit">Ajouter la tâche</button><button id="clearTasks" class="danger" type="button">Tout effacer</button></div>
+    </form>
+    <div id="tasks" aria-live="polite"></div>
+  </section>
   <p class="hint">Confidentialité : évite d'enregistrer des mots de passe, adresses, informations sensibles ou données privées. Cette première version n'est pas encore une IA connectée et ne peut pas écouter en continu avec un mot d'activation.</p>
 </main>
 <script>
@@ -92,6 +102,7 @@
   const log = $('log');
   const memoryKey = 'samos-memory-v1';
   const chatKey = 'samos-chat-v1';
+  const taskKey = 'samos-tasks-v1';
   const voiceKey = 'samos-voice-v1';
   const speechKey = 'samos-speech-enabled-v1';
   let speechEnabled = localStorage.getItem(speechKey) !== 'false';
@@ -197,6 +208,30 @@
       row.append(span,btn); $('memories').append(row);
     });
   };
+  const getTasks = () => { try { const items = JSON.parse(localStorage.getItem(taskKey) || '[]'); return Array.isArray(items) ? items : []; } catch { return []; } };
+  const renderTasks = () => {
+    const root = $('tasks'); root.replaceChildren();
+    const items = getTasks();
+    if (!items.length) { const p = document.createElement('p'); p.className = 'hint'; p.textContent = 'Aucune tâche pour le moment.'; root.append(p); return; }
+    items.forEach((item, index) => {
+      const row = document.createElement('div'); row.className = 'memory';
+      const label = document.createElement('label'); label.style.display = 'flex'; label.style.alignItems = 'center'; label.style.gap = '9px'; label.style.flex = '1'; label.style.margin = '0';
+      const check = document.createElement('input'); check.type = 'checkbox'; check.checked = !!item.done; check.style.width = 'auto';
+      const name = document.createElement('span'); name.textContent = item.text; name.style.textDecoration = item.done ? 'line-through' : 'none';
+      check.addEventListener('change', () => { const next = getTasks(); next[index].done = check.checked; localStorage.setItem(taskKey, JSON.stringify(next)); renderTasks(); });
+      label.append(check, name);
+      const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Supprimer';
+      remove.addEventListener('click', () => { const next = getTasks(); next.splice(index, 1); localStorage.setItem(taskKey, JSON.stringify(next)); renderTasks(); });
+      row.append(label, remove); root.append(row);
+    });
+  };
+  $('taskForm').addEventListener('submit', event => {
+    event.preventDefault(); const value = $('taskText').value.trim(); if (!value) return;
+    const items = getTasks(); items.push({ text: value, done: false });
+    localStorage.setItem(taskKey, JSON.stringify(items)); $('taskText').value = ''; renderTasks();
+  });
+  $('clearTasks').addEventListener('click', () => { localStorage.removeItem(taskKey); renderTasks(); });
+  renderTasks();
   const calculate = source => {
     const input = source.replace(/,/g, '.').replace(/[×x]/gi, '*').replace(/÷/g, '/').replace(/−/g, '-').replace(/\s+/g, '');
     if (!input || !/^[0-9.+*/()%-]+$/.test(input)) return null;
