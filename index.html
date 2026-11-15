@@ -35,6 +35,13 @@
     <p class="sub">Assistant personnel · Prototype locale</p>
   </header>
 
+  <section class="panel" aria-label="État des fonctions">
+    <h2 style="font-size:18px;margin-top:0">État des systèmes</h2>
+    <div id="systemStatus" aria-live="polite" class="hint">Vérification des fonctions…</div>
+    <div class="actions"><button id="refreshStatus" type="button">Actualiser le diagnostic</button></div>
+    <p class="hint">Ce diagnostic vérifie les capacités du navigateur. Il ne teste pas une connexion à une IA externe.</p>
+  </section>
+
   <section class="panel" aria-label="Conversation">
     <div id="log" aria-live="polite">
       <div class="msg samos">Bonjour. Je suis SAMOS. Je peux discuter avec des commandes simples, lire mes réponses à voix haute et conserver les notes que tu me demandes de mémoriser sur cet appareil.</div>
@@ -88,6 +95,36 @@
   const voiceKey = 'samos-voice-v1';
   const speechKey = 'samos-speech-enabled-v1';
   let speechEnabled = localStorage.getItem(speechKey) !== 'false';
+  const renderSystemStatus = () => {
+    const checks = [];
+    const recognitionAvailable = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+    const speechAvailable = 'speechSynthesis' in window;
+    let storageAvailable = false;
+    try {
+      const testKey = '__samos_test__';
+      localStorage.setItem(testKey, '1');
+      localStorage.removeItem(testKey);
+      storageAvailable = true;
+    } catch {}
+    checks.push(['Connexion Internet', navigator.onLine ? 'Connecté' : 'Hors ligne']);
+    checks.push(['Micro / reconnaissance vocale', recognitionAvailable ? 'Pris en charge par le navigateur' : 'Non pris en charge']);
+    checks.push(['Lecture vocale', speechAvailable ? 'Disponible' : 'Non disponible']);
+    checks.push(['Mémoire locale', storageAvailable ? 'Disponible' : 'Bloquée']);
+    checks.push(['Contexte sécurisé', window.isSecureContext ? 'Oui (HTTPS)' : 'Non']);
+    checks.push(['Application hors ligne', 'serviceWorker' in navigator ? (navigator.serviceWorker.controller ? 'Cache actif' : 'En cours d’activation') : 'Non pris en charge']);
+    const root = $('systemStatus');
+    root.replaceChildren();
+    checks.forEach(([name, value]) => {
+      const row = document.createElement('div');
+      row.className = 'memory';
+      const label = document.createElement('span'); label.textContent = name;
+      const status = document.createElement('strong'); status.textContent = value;
+      row.append(label, status); root.append(row);
+    });
+  };
+  $('refreshStatus').addEventListener('click', renderSystemStatus);
+  window.addEventListener('online', renderSystemStatus);
+  window.addEventListener('offline', renderSystemStatus);
   const getChat = () => { try { const data = JSON.parse(localStorage.getItem(chatKey) || '[]'); return Array.isArray(data) ? data.slice(-40) : []; } catch { return []; } };
   const saveChat = () => {
     const messages = [...log.querySelectorAll('.msg')].map(el => ({ text: el.textContent.slice(0, 500), who: el.classList.contains('user') ? 'user' : 'samos' })).slice(-40);
@@ -302,6 +339,7 @@
   }
   loadChat();
   renderMemories();
+  renderSystemStatus();
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 })();
 </script>
