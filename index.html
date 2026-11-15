@@ -43,6 +43,7 @@
       <button class="primary" id="mic">🎙 Parler</button>
       <button id="stop">Arrêter la voix</button>
       <button id="installApp" hidden>Installer SAMOS</button>
+      <button class="danger" id="clearChat" type="button">Effacer la conversation</button>
     </div>
     <p class="hint" id="voiceStatus">La reconnaissance vocale dépend de la compatibilité de ton navigateur et peut nécessiter une connexion.</p>
     <form id="chatForm">
@@ -54,7 +55,7 @@
 
   <section class="panel">
     <h2 style="font-size:18px;margin-top:0">Mémoire locale</h2>
-    <p class="hint">Les notes sont enregistrées dans le stockage de ce navigateur, sur cet appareil. Elles ne sont pas synchronisées et peuvent disparaître si les données du site sont effacées.</p>
+    <p class="hint">Les notes et l'historique de conversation sont enregistrés dans le stockage de ce navigateur, sur cet appareil. Ils ne sont pas synchronisés et peuvent disparaître si les données du site sont effacées. Évite les informations privées.</p>
     <form id="memoryForm">
       <label for="memoryText">Note à mémoriser</label>
       <textarea id="memoryText" maxlength="500" placeholder="Ex. Mon projet s'appelle SAMOS."></textarea>
@@ -69,6 +70,18 @@
   const $ = id => document.getElementById(id);
   const log = $('log');
   const memoryKey = 'samos-memory-v1';
+  const chatKey = 'samos-chat-v1';
+  const getChat = () => { try { const data = JSON.parse(localStorage.getItem(chatKey) || '[]'); return Array.isArray(data) ? data.slice(-40) : []; } catch { return []; } };
+  const saveChat = () => {
+    const messages = [...log.querySelectorAll('.msg')].map(el => ({ text: el.textContent.slice(0, 500), who: el.classList.contains('user') ? 'user' : 'samos' })).slice(-40);
+    try { localStorage.setItem(chatKey, JSON.stringify(messages)); } catch {}
+  };
+  const loadChat = () => {
+    const messages = getChat();
+    if (!messages.length) return;
+    log.replaceChildren();
+    messages.forEach(item => addMessage(item.text, item.who));
+  };
   const getMemories = () => { try { return JSON.parse(localStorage.getItem(memoryKey) || '[]'); } catch { return []; } };
   const say = text => {
     if (!('speechSynthesis' in window)) return;
@@ -83,6 +96,7 @@
   const addMessage = (text, who) => {
     const div = document.createElement('div'); div.className = 'msg ' + who; div.textContent = text;
     log.appendChild(div); log.scrollTop = log.scrollHeight;
+    saveChat();
   };
   const renderMemories = () => {
     const list = getMemories(); $('memories').replaceChildren();
@@ -138,6 +152,12 @@
   });
   $('clearMemory').addEventListener('click', () => { if(confirm('Effacer toutes les notes locales de SAMOS ?')) { localStorage.removeItem(memoryKey); renderMemories(); } });
   $('stop').addEventListener('click', () => { if('speechSynthesis' in window) speechSynthesis.cancel(); });
+  $('clearChat').addEventListener('click', () => {
+    if (!confirm('Effacer l’historique de cette conversation sur cet appareil ?')) return;
+    localStorage.removeItem(chatKey);
+    log.replaceChildren();
+    addMessage('Historique effacé. Bonjour, je suis SAMOS.','samos');
+  });
   let installPrompt = null;
   const installButton = $('installApp');
   window.addEventListener('beforeinstallprompt', event => {
@@ -166,6 +186,7 @@
   } else {
     $('mic').disabled=true; $('voiceStatus').textContent='La reconnaissance vocale n’est pas disponible dans ce navigateur. Tu peux écrire tes messages et utiliser la lecture vocale si elle est prise en charge.';
   }
+  loadChat();
   renderMemories();
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 })();
