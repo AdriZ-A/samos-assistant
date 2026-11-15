@@ -80,7 +80,7 @@
     <form id="memoryForm">
       <label for="memoryText">Note à mémoriser</label>
       <textarea id="memoryText" maxlength="500" placeholder="Ex. Mon projet s'appelle SAMOS."></textarea>
-      <div class="actions"><button class="primary" type="submit">Mémoriser</button><button class="danger" id="clearMemory" type="button">Effacer la mémoire</button></div>
+      <div class="actions"><button class="primary" type="submit">Mémoriser</button><button id="exportMemory" type="button">Exporter mes notes</button><button class="danger" id="clearMemory" type="button">Effacer la mémoire</button></div>
     </form>
     <div id="memories" aria-live="polite"></div>
   </section>
@@ -281,6 +281,25 @@
     e.preventDefault(); const value=$('memoryText').value.trim(); if(!value) return;
     const list=getMemories(); list.push(value); localStorage.setItem(memoryKey,JSON.stringify(list)); $('memoryText').value=''; renderMemories();
     addMessage("C'est noté dans la mémoire locale de cet appareil.",'samos'); say("C'est noté.");
+  });
+  $('exportMemory').addEventListener('click', () => {
+    const notes = getMemories();
+    if (!notes.length) {
+      $('voiceStatus').textContent = 'Aucune note à exporter pour le moment.';
+      return;
+    }
+    const content = 'Notes SAMOS\\nExport local du ' + new Date().toLocaleString('fr-FR') + '\\n\\n' +
+      notes.map((note, index) => (index + 1) + '. ' + note).join('\\n');
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'samos-notes.txt';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    $('voiceStatus').textContent = 'Export de tes notes préparé.';
   });
   $('clearMemory').addEventListener('click', () => { if(confirm('Effacer toutes les notes locales de SAMOS ?')) { localStorage.removeItem(memoryKey); renderMemories(); } });
   $('stop').addEventListener('click', () => { if('speechSynthesis' in window) speechSynthesis.cancel(); });
