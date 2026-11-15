@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <meta name="description" content="SAMOS, assistant personnel vocal fonctionnant localement.">
+  <link rel="manifest" href="manifest.json">
+  <title>SAMOS — Assistant personnel</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0b1220;--panel:#121d30;--line:#263650;--text:#eef4ff;--muted:#9eb0ca;--accent:#70b7ff}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#182b47,var(--bg) 65%);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+    main{width:min(720px,100%);margin:auto;padding:24px 16px 48px}.top{text-align:center;padding:28px 0 20px}
+    .orb{width:86px;height:86px;border:1px solid #5b9ed8;border-radius:50%;margin:0 auto 14px;display:grid;place-items:center;box-shadow:0 0 32px #388bd855,inset 0 0 24px #388bd833;color:#a9d8ff;font-size:30px}
+    h1{letter-spacing:.22em;margin:0;font-size:30px} .sub{color:var(--muted);margin:8px 0 0}
+    .panel{background:#121d30eF;border:1px solid var(--line);border-radius:18px;padding:16px;margin:14px 0}
+    #log{min-height:150px;max-height:340px;overflow:auto;display:flex;flex-direction:column;gap:10px}
+    .msg{padding:11px 13px;border-radius:13px;max-width:92%;white-space:pre-wrap;line-height:1.45}
+    .samos{background:#1c304a;align-self:flex-start}.user{background:#214b70;align-self:flex-end}
+    label{display:block;color:var(--muted);font-size:13px;margin:0 0 7px}
+    input,textarea,button{font:inherit}input,textarea{width:100%;border:1px solid var(--line);border-radius:12px;background:#0b1525;color:var(--text);padding:13px}
+    textarea{min-height:78px;resize:vertical}
+    .actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:10px}
+    button{border:1px solid #3a5c80;background:#1a3552;color:var(--text);border-radius:12px;padding:11px 14px;cursor:pointer}
+    button.primary{background:#25649a;border-color:#4c9bd8}button:disabled{opacity:.5}
+    .hint{font-size:13px;color:var(--muted);line-height:1.5}.memory{display:flex;justify-content:space-between;gap:10px;align-items:center;border-top:1px solid var(--line);padding:10px 0}
+    .memory span{overflow-wrap:anywhere}.danger{background:#42232b;border-color:#75404a}
+  </style>
+</head>
+<body>
+<main>
+  <header class="top">
+    <div class="orb" aria-hidden="true">S</div>
+    <h1>SAMOS</h1>
+    <p class="sub">Assistant personnel · Prototype locale</p>
+  </header>
+
+  <section class="panel" aria-label="Conversation">
+    <div id="log" aria-live="polite">
+      <div class="msg samos">Bonjour. Je suis SAMOS. Je peux discuter avec des commandes simples, lire mes réponses à voix haute et conserver les notes que tu me demandes de mémoriser sur cet appareil.</div>
+    </div>
+    <div class="actions">
+      <button class="primary" id="mic">🎙 Parler</button>
+      <button id="stop">Arrêter la voix</button>
+    </div>
+    <p class="hint" id="voiceStatus">La reconnaissance vocale dépend de la compatibilité de ton navigateur et peut nécessiter une connexion.</p>
+    <form id="chatForm">
+      <label for="message">Écris à SAMOS</label>
+      <input id="message" autocomplete="off" placeholder="Ex. Bonjour SAMOS" maxlength="500">
+      <div class="actions"><button class="primary" type="submit">Envoyer</button></div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2 style="font-size:18px;margin-top:0">Mémoire locale</h2>
+    <p class="hint">Les notes sont enregistrées dans le stockage de ce navigateur, sur cet appareil. Elles ne sont pas synchronisées et peuvent disparaître si les données du site sont effacées.</p>
+    <form id="memoryForm">
+      <label for="memoryText">Note à mémoriser</label>
+      <textarea id="memoryText" maxlength="500" placeholder="Ex. Mon projet s'appelle SAMOS."></textarea>
+      <div class="actions"><button class="primary" type="submit">Mémoriser</button><button class="danger" id="clearMemory" type="button">Effacer la mémoire</button></div>
+    </form>
+    <div id="memories" aria-live="polite"></div>
+  </section>
+  <p class="hint">Confidentialité : évite d'enregistrer des mots de passe, adresses, informations sensibles ou données privées. Cette première version n'est pas encore une IA connectée et ne peut pas écouter en continu avec un mot d'activation.</p>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const log = $('log');
+  const memoryKey = 'samos-memory-v1';
+  const getMemories = () => { try { return JSON.parse(localStorage.getItem(memoryKey) || '[]'); } catch { return []; } };
+  const say = text => {
+    if (!('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = 'fr-FR'; u.rate = 0.94; u.pitch = 0.88;
+    const voices = speechSynthesis.getVoices();
+    const french = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
+    if (french) u.voice = french;
+    speechSynthesis.speak(u);
+  };
+  const addMessage = (text, who) => {
+    const div = document.createElement('div'); div.className = 'msg ' + who; div.textContent = text;
+    log.appendChild(div); log.scrollTop = log.scrollHeight;
+  };
+  const renderMemories = () => {
+    const list = getMemories(); $('memories').replaceChildren();
+    if (!list.length) { const p = document.createElement('p'); p.className='hint'; p.textContent='Aucune note enregistrée.'; $('memories').append(p); return; }
+    list.forEach((item, i) => {
+      const row = document.createElement('div'); row.className='memory';
+      const span = document.createElement('span'); span.textContent = item;
+      const btn = document.createElement('button'); btn.textContent='Supprimer'; btn.type='button';
+      btn.addEventListener('click', () => { const next=getMemories(); next.splice(i,1); localStorage.setItem(memoryKey,JSON.stringify(next)); renderMemories(); });
+      row.append(span,btn); $('memories').append(row);
+    });
+  };
+  const respond = raw => {
+    const text = raw.trim(); if (!text) return;
+    addMessage(text,'user');
+    const q = text.toLowerCase();
+    let answer = "Je suis encore une version de démonstration. Je peux répondre à quelques commandes simples et conserver des notes locales. Pour une véritable conversation intelligente, il faudra connecter plus tard un service d'IA.";
+    if (/\b(bonjour|salut|bonsoir)\b/.test(q)) answer = "Bonjour. Que puis-je faire pour toi ?";
+    else if (q.includes('qui es-tu') || q.includes('ton nom')) answer = "Je suis SAMOS, ton assistant personnel en version prototype.";
+    else if (q.includes('quelle heure')) answer = "L'heure affichée par ton téléphone est " + new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) + ".";
+    else if (q.includes('que sais-tu') || q.includes('ma mémoire') || q.includes('mes notes')) answer = getMemories().length ? "Voici les notes mémorisées : " + getMemories().join(' ; ') : "Je n'ai encore aucune note en mémoire.";
+    else if (q.includes('merci')) answer = "Avec plaisir. Je suis prêt à continuer.";
+    addMessage(answer,'samos'); say(answer);
+  };
+  $('chatForm').addEventListener('submit', e => { e.preventDefault(); const value=$('message').value; $('message').value=''; respond(value); });
+  $('memoryForm').addEventListener('submit', e => {
+    e.preventDefault(); const value=$('memoryText').value.trim(); if(!value) return;
+    const list=getMemories(); list.push(value); localStorage.setItem(memoryKey,JSON.stringify(list)); $('memoryText').value=''; renderMemories();
+    addMessage("C'est noté dans la mémoire locale de cet appareil.",'samos'); say("C'est noté.");
+  });
+  $('clearMemory').addEventListener('click', () => { if(confirm('Effacer toutes les notes locales de SAMOS ?')) { localStorage.removeItem(memoryKey); renderMemories(); } });
+  $('stop').addEventListener('click', () => { if('speechSynthesis' in window) speechSynthesis.cancel(); });
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognition) {
+    const recognition = new SpeechRecognition(); recognition.lang='fr-FR'; recognition.interimResults=false; recognition.maxAlternatives=1;
+    recognition.onresult = e => respond(e.results[0][0].transcript);
+    recognition.onerror = e => { $('voiceStatus').textContent='Reconnaissance vocale : ' + e.error + '. Tu peux aussi écrire ton message.'; };
+    recognition.onend = () => { $('mic').disabled=false; };
+    $('mic').addEventListener('click', () => { $('mic').disabled=true; $('voiceStatus').textContent='Je t’écoute. Appuie sur le bouton pour lancer une nouvelle écoute.'; try { recognition.start(); } catch { $('mic').disabled=false; } });
+  } else {
+    $('mic').disabled=true; $('voiceStatus').textContent='La reconnaissance vocale n’est pas disponible dans ce navigateur. Tu peux écrire tes messages et utiliser la lecture vocale si elle est prise en charge.';
+  }
+  renderMemories();
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+})();
+</script>
+</body>
+</html>
