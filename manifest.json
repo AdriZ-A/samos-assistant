@@ -1,0 +1,11 @@
+{
+  "name": "SAMOS — Assistant personnel",
+  "short_name": "SAMOS",
+  "lang": "fr-FR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#101827",
+  "description": "Prototype local de l'assistant personnel SAMOS."
+}
